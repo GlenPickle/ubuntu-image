@@ -170,24 +170,9 @@ in more detail below.
 -i SIZE, --image-size SIZE
     The size of the generated disk image files.  If this size is smaller than
     the minimum calculated size of the volume, a warning will be issued and
-    ``--image-size`` will be ignored.  The value is the size in bytes, with
-    allowable suffixes 'M' for MiB and 'G' for GiB.
-
-    An extended syntax is supported for gadget.yaml files which specify
-    multiple volumes (i.e. disk images).  In that case, a single ``SIZE``
-    argument will be used for all the defined volumes, with the same rules for
-    ignoring values which are too small.  You can specify the image size for a
-    single volume using an indexing prefix on the ``SIZE`` parameter, where
-    the index is either a volume name or an integer index starting at zero.
-    For example, to set the image size only on the second volume, which might
-    be called ``sdcard`` in the gadget.yaml, you could use: ``--image-size
-    1:8G`` since the 1-th index names the second volume (volumes are
-    0-indexed).  Or you could use ``--image-size sdcard:8G``.
-
-    You can also specify multiple volume sizes by separating them with commas,
-    and you can mix and match integer indexes and volume name indexes.  Thus,
-    if the gadget.yaml named three volumes, and you wanted to set all three to
-    different sizes, you could use ``--image-size 0:2G,sdcard:8G,eMMC:4G``.
+    ``--image-size`` will be ignored.  The format for this argument is
+    ``volume_name:size_in_bytes``, with allowable suffixes 'M' for MiB
+    and 'G' for GiB.
 
     In the case of ambiguities, the size hint is ignored and the calculated
     size for the volume will be used instead.
@@ -197,8 +182,11 @@ in more detail below.
     images created by the command, if any.
 
 --hooks-directory DIRECTORY
-    Path or comma-separated list of paths of directories in which scripts for
-    build-time hooks will be located.
+    Directories in which scripts for build-time hooks will be located. This
+    flag must be specified once for each hook directory. ``ubuntu-image``
+    will look for hooks in ``hooks_directory/name_of_hooks_step.d`` and
+    a script with the name ``hooks_directory/name_of_hooks_step``. Currently
+    the only supported hooks step is ``populate_rootfs_contents``.
 
 --disk-info DISK-INFO-CONTENTS
     File to be used as .disk/info on the image's rootfs.  This file can

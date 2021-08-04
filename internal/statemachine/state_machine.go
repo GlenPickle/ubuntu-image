@@ -12,8 +12,9 @@ import (
 
 	"github.com/canonical/ubuntu-image/internal/commands"
 	"github.com/canonical/ubuntu-image/internal/helper"
-	"github.com/inhies/go-bytesize"
+	"github.com/snapcore/snapd/asserts"
 	"github.com/snapcore/snapd/gadget"
+	"github.com/snapcore/snapd/gadget/quantity"
 	"github.com/snapcore/snapd/osutil"
 )
 
@@ -54,7 +55,8 @@ type StateMachine struct {
 	StepsTaken   int    // counts the number of steps taken
 	yamlFilePath string // the location for the yaml file
 	hooksAllowed bool   // core 20 images can't run hooks
-	rootfsSize   bytesize.ByteSize
+	isSeeded     bool   // core 20 images are seeded
+	rootfsSize   quantity.Size
 	tempDirs     temporaryDirectories
 
 	// The flags that were passed in on the command line
@@ -68,16 +70,12 @@ type StateMachine struct {
 
 	// imported from snapd, the info parsed from gadget.yaml
 	gadgetInfo *gadget.Info
-}
 
-// getStateNumberByName returns the numeric order of a state based on its name
-func (stateMachine *StateMachine) getStateNumberByName(name string) int {
-	for i, stateFunc := range stateMachine.states {
-		if name == stateFunc.name {
-			return i
-		}
-	}
-	return -1
+	// imported from snapd
+	model *asserts.Model
+
+	// image sizes for parsing the --image-size flags
+	imageSizes map[string]quantity.Size
 }
 
 // SetCommonOpts stores the common options for all image types in the struct

@@ -4,10 +4,12 @@ package statemachine
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/canonical/ubuntu-image/internal/helper"
 	"github.com/google/uuid"
+	"github.com/snapcore/snapd/gadget"
 )
 
 // TestMakeTemporaryDirectories tests a successful execution of the
@@ -235,9 +237,9 @@ func TestCalculateRootfsSize(t *testing.T) {
 			t.Errorf("Did not expect an error, got %s", err.Error())
 		}
 
-		correctSize := "12.01MB"
-		if stateMachine.rootfsSize.String() != correctSize {
-			t.Errorf("expected rootfsSize = %s, got %s", correctSize, stateMachine.rootfsSize.String())
+		correctSize := "12.01 MiB"
+		if stateMachine.rootfsSize.IECString() != correctSize {
+			t.Errorf("expected rootfsSize = %s, got %s", correctSize, stateMachine.rootfsSize.IECString())
 		}
 
 		os.RemoveAll(stateMachine.stateMachineFlags.WorkDir)
@@ -256,6 +258,90 @@ func TestFailedCalculateRootfsSize(t *testing.T) {
 			t.Errorf("Expected an error, but got none")
 		}
 
+		os.RemoveAll(stateMachine.stateMachineFlags.WorkDir)
+	})
+}
+
+// TestPrepopulateBootfsContents tests a successful call to stateMachine.prePopulateBootfsContents
+func TestPrepopulateBootfsContents(t *testing.T) {
+	t.Run("test_prepopulate_bootfs_contents", func(t *testing.T) {
+		var stateMachine StateMachine
+		stateMachine.commonFlags, stateMachine.stateMachineFlags = helper.InitCommonOpts()
+		stateMachine.tempDirs.rootfs = filepath.Join("testdata", uuid.NewString())
+
+		// need workdir set up for this
+		if err := stateMachine.makeTemporaryDirectories(); err != nil {
+			t.Errorf("Did not expect an error, got %s", err.Error())
+		}
+
+		// set up the gadget area
+		gadgetDir := filepath.Join(stateMachine.tempDirs.unpack, "gadget")
+		err := osMkdirAll(gadgetDir, 0755)
+		if err != nil && !os.IsExist(err) {
+			t.Errorf("Error creating unpack directory: %s", err.Error())
+		}
+		// recursively copy the gadget tree to unpack/gadget
+		gadgetTree := filepath.Join("testdata", "gadget_tree")
+		files, err := ioutilReadDir(gadgetTree)
+		if err != nil {
+			t.Errorf("Error reading gadget tree: %s", err.Error())
+		}
+		for _, gadgetFile := range files {
+			srcFile := filepath.Join(gadgetTree, gadgetFile.Name())
+			if err := osutilCopySpecialFile(srcFile, gadgetDir); err != nil {
+				t.Errorf("Error copying gadget tree: %s", err.Error())
+			}
+		}
+
+		// need to load the gadget yaml
+		stateMachine.yamlFilePath = filepath.Join(gadgetTree, "meta", "gadget.yaml")
+		if err := stateMachine.loadGadgetYaml(); err != nil {
+			t.Errorf("Did not expect an error, got %s", err.Error())
+		}
+
+		// now test that the bootfs contents exist
+		if err := stateMachine.populateBootfsContents(); err != nil {
+			t.Errorf("Did not expect an error, got %s", err.Error())
+		}
+
+		for volumeName, volume := range stateMachine.gadgetInfo.Volumes {
+			for i, structure := range volume.Structure {
+				if structure.Role == gadget.SystemBoot {
+					structDir := filepath.Join(stateMachine.tempDirs.volumes, volumeName,
+						"part"+strconv.Itoa(i))
+					_, err := os.Stat(structDir)
+					if err != nil {
+						t.Errorf("Directory %s should exist but does not", structDir)
+					}
+				}
+			}
+		}
+
+		os.RemoveAll(stateMachine.stateMachineFlags.WorkDir)
+	})
+}
+
+// TestFailedPrepopulateBootfsContents tests a failure in stateMachine.prepopulateBootfsContents
+func TestFailedPrepopulateBootfsContents(t *testing.T) {
+	t.Run("test_failed_prepopulate_bootfs_contents", func(t *testing.T) {
+		var stateMachine StateMachine
+		stateMachine.commonFlags, stateMachine.stateMachineFlags = helper.InitCommonOpts()
+		stateMachine.tempDirs.rootfs = filepath.Join("testdata", uuid.NewString())
+
+		// need workdir set up for this
+		if err := stateMachine.makeTemporaryDirectories(); err != nil {
+			t.Errorf("Did not expect an error, got %s", err.Error())
+		}
+
+		// need to load the gadget yaml
+		stateMachine.yamlFilePath = filepath.Join("testdata", "gadget_tree", "meta", "gadget.yaml")
+		if err := stateMachine.loadGadgetYaml(); err != nil {
+			t.Errorf("Did not expect an error, got %s", err.Error())
+		}
+
+		if err := stateMachine.populateBootfsContents(); err == nil {
+			t.Errorf("Expected an error, but got none")
+		}
 		os.RemoveAll(stateMachine.stateMachineFlags.WorkDir)
 	})
 }

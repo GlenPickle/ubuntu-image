@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/canonical/ubuntu-image/internal/helper"
+	//"github.com/snapcore/snapd/asserts"
+	//"github.com/snapcore/snapd/image"
 )
 
 // Prepare the gadget tree
@@ -33,6 +35,8 @@ func (stateMachine *StateMachine) prepareGadgetTree() error {
 	// We assume the gadget tree was built from a gadget source tree using
 	// snapcraft prime so the gadget.yaml file is expected in the meta directory
 	classicStateMachine.yamlFilePath = filepath.Join(gadgetDir, "meta", "gadget.yaml")
+
+	classicStateMachine.model = nil
 
 	return nil
 }
@@ -71,7 +75,7 @@ func (stateMachine *StateMachine) runLiveBuild() error {
 		}
 		env = append(env, "IMAGEFORMAT=none")
 
-		lbConfig, lbBuild, err := helper.SetupLiveBuildCommands(classicStateMachine.tempDirs.rootfs,
+		lbConfig, lbBuild, err := helper.SetupLiveBuildCommands(classicStateMachine.tempDirs.unpack,
 			arch, env, true)
 		if err != nil {
 			return fmt.Errorf("error setting up live_build: %s", err.Error())
@@ -80,7 +84,7 @@ func (stateMachine *StateMachine) runLiveBuild() error {
 		// now run the "lb config" and "lb build" commands
 		saveCWD := helper.SaveCWD()
 		defer saveCWD()
-		os.Chdir(stateMachine.tempDirs.rootfs)
+		os.Chdir(stateMachine.tempDirs.unpack)
 
 		if err := lbConfig.Run(); err != nil {
 			return err

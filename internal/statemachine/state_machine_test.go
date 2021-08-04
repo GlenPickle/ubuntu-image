@@ -16,6 +16,16 @@ import (
 
 var testDir = "ubuntu-image-0615c8dd-d3af-4074-bfcb-c3d3c8392b06"
 
+// getStateNumberByName returns the numeric order of a state based on its name
+func (stateMachine *StateMachine) getStateNumberByName(name string) int {
+	for i, stateFunc := range stateMachine.states {
+		if name == stateFunc.name {
+			return i
+		}
+	}
+	return -1
+}
+
 // mockReadDir is used to mock calls to ioutil.ReadDir
 var mockReadDir = func(dirname string) (interface{}, error) {
 	return nil, fmt.Errorf("Test Error")

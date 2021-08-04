@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/canonical/ubuntu-image/internal/helper"
 	"github.com/snapcore/snapd/image"
 	"github.com/snapcore/snapd/snap"
 )
@@ -35,33 +36,23 @@ func (stateMachine *StateMachine) prepareImage() error {
 	}
 
 	// set the gadget yaml location
-	snapStateMachine.yamlFilePath = filepath.Join(stateMachine.tempDirs.unpack, "gadget", "meta", "gadget.yaml")
+	snapStateMachine.yamlFilePath = filepath.Join(stateMachine.tempDirs.unpack,
+		"gadget", "meta", "gadget.yaml")
+
+	model, err := helper.DecodeModelAssertion(&imageOpts)
+	if err != nil {
+		return fmt.Errorf("Error decoding model from %s: %s",
+			snapStateMachine.Args.ModelAssertion, err.Error())
+	}
+	snapStateMachine.model = model
 
 	return nil
 }
 
-// populateSnapRootfsContents uses a NewMountedFileSystemWriter to populate the rootfs
+// populateSnapRootfsContents copies the appropriate data from unpack to rootfs
 func (stateMachine *StateMachine) populateSnapRootfsContents() error {
-	/*if self.disable_console_conf:
-	    # For now we just touch /var/lib/console-conf/complete to disable
-	    # console-conf on core images.
-	    cc_dir = os.path.join(dst, 'var', 'lib', 'console-conf')
-	    os.makedirs(cc_dir, exist_ok=True)
-	    Path(os.path.join(cc_dir, 'complete')).touch()
-	super().populate_rootfs_contents() */
-
-	isSeeded := false
-	for _, volume := range stateMachine.gadgetInfo.Volumes {
-		for _, structure := range volume.Structure {
-			if structure.Role == "system-seed" {
-				isSeeded = true
-				stateMachine.hooksAllowed = false
-			}
-		}
-	}
-
 	var src, dst string
-	if isSeeded {
+	if stateMachine.isSeeded {
 		// For now, since we only create the system-seed partition for
 		// uc20 images, we hard-code to use this path for the rootfs
 		// seed population.  In the future we might want to consider
@@ -84,7 +75,7 @@ func (stateMachine *StateMachine) populateSnapRootfsContents() error {
 		return fmt.Errorf("Error reading unpack dir: %s", err.Error())
 	}
 	for _, srcFile := range files {
-		if !isSeeded && srcFile.Name() == "boot" {
+		if !stateMachine.isSeeded && srcFile.Name() == "boot" {
 			continue
 		}
 		srcFile := filepath.Join(src, srcFile.Name())
