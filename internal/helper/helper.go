@@ -170,6 +170,7 @@ func CopyBlob(ddArgs []string) error {
 	return nil
 }
 
+// MkfsFunc is something I copy pasted from snapd while I wait for a PR to be merged
 // TODO: yeet this after getting the snapd code merged
 type MkfsFunc func(imgFile, label, contentsRootDir string, deviceSize, sectorSize quantity.Size) error
 
